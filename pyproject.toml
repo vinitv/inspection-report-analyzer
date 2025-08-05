@@ -1,7 +1,77 @@
 [project]
 name = "inspection-report-analyzer"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI agent system that analyzes property inspection reports and provides prioritized repair recommendations with SoCal-specific cost estimates"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    # Core Framework 
+    "jupyter>=1.1.1",
+    "langchain>=0.3.19",
+    "langchain-core>=0.3.0",
+    "langchain-community>=0.3.26", 
+    "langchain-openai>=0.3.27",
+    "langchain-experimental>=0.3.4",
+    "langchain-qdrant>=0.2.0",
+    
+    # Agentic Framework 
+    "langgraph>=0.2.69",
+    "langgraph-checkpoint>=2.1.0",
+    "langsmith>=0.4.4",
+    
+    # LLM Providers
+    "openai>=1.0.0",
+    "langchain-cohere>=0.3.0",
+    "cohere>=5.12.0,<5.13.0",
+    
+    # Vector Databases & Search 
+    "qdrant-client>=1.13.2",
+    
+    # Advanced Retrieval
+    "rank-bm25>=0.2.2",
+    "rapidfuzz>=3.0.0",
+    
+    # Evaluation Framework
+    "ragas==0.2.10",
+    "datasets>=2.0.0",
+    
+    # PDF Processing 
+    "pymupdf>=1.26.3",
+    
+    # Data Processing (minimal set)
+    "pandas>=2.0.0",
+    "matplotlib>=3.0.0",
+    "numpy>=1.24.0",
+    "seaborn>=0.12.0",
+    
+    # Environment Management
+    "python-dotenv>=1.0.0",
+    
+    # HTTP Requests
+    "requests>=2.31.0",
+    
+    # Web Framework
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    
+    # Frontend
+    "streamlit>=1.28.0",
+    
+    # Additional utilities
+    "pathlib2>=2.3.7",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["inspection_report_analyzer*"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
