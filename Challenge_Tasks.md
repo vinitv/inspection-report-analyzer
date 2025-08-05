@@ -185,6 +185,8 @@ The RAGAS evaluation results reveal a pipeline with mixed performance that's fun
 
 ## Retrieval Techniques for Inspection Report Analysis
 
+##### ✅ Answer:
+
 ### **1. Baseline (Naive) Vector Similarity Search**
 This technique uses standard semantic similarity search with embeddings to find the most relevant inspection report sections. I believe this will be useful as a foundation because it provides straightforward retrieval of content with semantic similarity to user questions about specific inspection findings.
 
@@ -200,6 +202,7 @@ Each technique addresses a specific challenge: baseline provides speed, multi-qu
 
 ### Task 7: Assessing Performance
 
+##### ✅ Answer:
 
 ## RAGAS Evaluation Results
 
