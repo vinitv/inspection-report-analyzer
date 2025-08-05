@@ -1,0 +1,32 @@
+# API Keys for Inspection Report Analyzer App
+# Copy this file to .env and fill in your actual API keys
+
+# OpenAI API Key (required for LLM and embeddings)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Cohere API Key (required for reranking/compression)
+COHERE_API_KEY=your_cohere_api_key_here
+
+# Tavily API Key (required for web search tool)
+TAVILY_API_KEY=your_tavily_api_key_here
+
+# Repair Cost API Key (optional - for cost estimation tool)
+REPAIR_API_KEY=your_repair_api_key_here
+
+# LangSmith API Key (optional - for tracing and monitoring)
+LANGSMITH_API_KEY=your_langsmith_api_key_here
+
+# LangSmith Configuration (optional)
+LANGCHAIN_TRACING_V2=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com/
+LANGSMITH_PROJECT=Inspection-Report-App
+
+# Instructions:
+# 1. Copy this file: cp env_template.txt .env
+# 2. Edit .env and replace the placeholder values with your actual API keys
+# 3. Get API keys from:
+#    - OpenAI: https://platform.openai.com/api-keys
+#    - Cohere: https://dashboard.cohere.ai/api-keys
+#    - Tavily: https://app.tavily.com/
+#    - Repair Cost API: Contact the API provider for access
+#    - LangSmith: https://smith.langchain.com/
