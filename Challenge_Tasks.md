@@ -4,7 +4,7 @@
 
 - [Notebook](./Complete_Inspection_RAG_System.ipynb)
 - [Home Repair Cost API](https://repair-cost-api-618596951812.us-central1.run.app/docs) Custom Built/Hosted on Cloud Run
-
+- [Loom](https://www.loom.com/share/ab09b4917fba4ce9ac551828fda110ed?sid=b53033a5-9b5a-4eb8-9fa9-f523a7f6c9ce)
 
 ### Challenge Tasks
 
