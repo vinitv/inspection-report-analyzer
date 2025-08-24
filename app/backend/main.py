@@ -9,10 +9,11 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
 
@@ -40,7 +41,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000", "http://127.0.0.1:3000",  # HTML Frontend
+        "http://localhost:3000", "http://127.0.0.1:3000",  # Local development
+        "https://*.run.app",  # Cloud Run domains
         "*"  # Allow all origins for development
     ],
     allow_credentials=True,
@@ -51,8 +53,11 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+# Mount frontend files
+app.mount("/frontend", StaticFiles(directory="app/frontend"), name="frontend")
+
 # Initialize components
-analyzer = InspectionAnalyzer()
+analyzer = None  # Will be initialized on startup
 rate_limiter = RateLimiter(max_reports_per_day=3)
 
 # Security
@@ -64,18 +69,50 @@ sessions: Dict[str, Dict] = {}
 @app.on_event("startup")
 async def startup_event():
     """Initialize the application on startup"""
+    global analyzer
     logger.info("🚀 Starting California Property Inspection Analyzer API")
-    await analyzer.initialize()
-    logger.info("✅ Inspection analyzer initialized successfully")
+    
+    # Try to initialize analyzer with retries
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"🔄 Initializing analyzer (attempt {attempt + 1}/{max_retries})")
+            analyzer = InspectionAnalyzer()
+            await analyzer.initialize()
+            logger.info("✅ Inspection analyzer initialized successfully")
+            return
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize analyzer (attempt {attempt + 1}): {str(e)}")
+            if attempt < max_retries - 1:
+                logger.info(f"⏳ Retrying in 5 seconds...")
+                import asyncio
+                await asyncio.sleep(5)
+            else:
+                logger.warning("⚠️ App starting without analyzer - some features may be limited")
+                analyzer = None
 
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
+    analyzer_status = "ready" if analyzer and analyzer.is_ready else "initializing"
+    if analyzer is None:
+        analyzer_status = "not_initialized"
+    
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
-        "analyzer_status": "ready" if analyzer.is_ready else "initializing"
+        "analyzer_status": analyzer_status,
+        "analyzer_available": analyzer is not None,
+        "environment": {
+            "port": os.environ.get("PORT", "8000"),
+            "host": os.environ.get("HOST", "0.0.0.0")
+        },
+        "api_keys": {
+            "openai": "set" if os.getenv("OPENAI_API_KEY") else "not_set",
+            "repair": "set" if os.getenv("REPAIR_API_KEY") else "not_set",
+            "langsmith": "set" if os.getenv("LANGSMITH_API_KEY") else "not_set"
+        }
     }
 
 def get_session_id(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> str:
@@ -123,14 +160,33 @@ async def upload_inspection_report(
         
         # Save uploaded file
         upload_dir = Path("app/static/uploads")
-        upload_dir.mkdir(exist_ok=True)
+        upload_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Debug directory info
+        logger.info(f"Upload directory: {upload_dir.absolute()}")
+        logger.info(f"Directory exists: {upload_dir.exists()}")
+        logger.info(f"Directory is writable: {os.access(upload_dir, os.W_OK)}")
+        
+        # Ensure proper permissions
+        try:
+            upload_dir.chmod(0o755)
+            logger.info(f"Set upload directory permissions to 755")
+        except Exception as e:
+            logger.warning(f"Could not set upload directory permissions: {e}")
         
         file_id = str(uuid.uuid4())
         file_path = upload_dir / f"{file_id}_{file.filename}"
         
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
+        try:
+            with open(file_path, "wb") as buffer:
+                content = await file.read()
+                buffer.write(content)
+        except PermissionError as e:
+            logger.error(f"Permission denied writing file {file_path}: {e}")
+            raise HTTPException(status_code=500, detail="Server configuration error: cannot write files")
+        except Exception as e:
+            logger.error(f"Error writing file {file_path}: {e}")
+            raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
         
         # Process PDF in background
         background_tasks.add_task(
@@ -163,8 +219,23 @@ async def process_pdf_analysis(file_path: Path, file_id: str, session_id: str):
     try:
         logger.info(f"🔄 Processing PDF for file {file_id}")
         
-        # Extract text from PDF and add to vector store
+        # Extract text from PDF
         pdf_text = process_pdf(file_path)
+        
+        # Check if analyzer is available
+        if analyzer is None:
+            logger.warning(f"⚠️ Analyzer not available for file {file_id}, storing basic info only")
+            if session_id in sessions:
+                sessions[session_id]["analysis"] = {
+                    "file_id": file_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "summary": "Document uploaded but analyzer not ready. Please try again in a moment.",
+                    "strategy_used": "Basic Upload",
+                    "pdf_text": pdf_text,
+                    "status": "completed"
+                }
+            logger.info(f"✅ PDF stored successfully for file {file_id} (analyzer not ready)")
+            return
         
         # Add the PDF to the analyzer's knowledge base
         await analyzer.add_document(pdf_text, file_id)
@@ -276,6 +347,54 @@ async def chat_with_report(
                 detail="No completed report analysis found. Please upload a report first."
             )
         
+        # Check if analyzer is ready
+        if not analyzer or not analyzer.is_ready:
+            logger.warning(f"⚠️ Analyzer not ready, using fallback chat for session {actual_session_id}")
+            
+            # Fallback: Use basic LLM response with PDF context
+            try:
+                from langchain_openai import ChatOpenAI
+                fallback_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+                
+                # Create a simple prompt with the PDF content
+                fallback_prompt = f"""
+                You are a helpful property inspection analyst. Based on the following inspection report content, please answer the user's question.
+                
+                Inspection Report Content:
+                {analysis['pdf_text'][:6000]}
+                
+                User Question: {request.message}
+                
+                Please provide a helpful, detailed response based on the inspection report content. If the information isn't available in the report, please say so.
+                """
+                
+                # Get response from fallback LLM
+                fallback_response = await fallback_llm.ainvoke(fallback_prompt)
+                
+                # Update conversation history
+                session["conversation_history"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "question": request.message,
+                    "answer": fallback_response.content,
+                    "strategy": "Fallback LLM"
+                })
+                
+                logger.info(f"💬 Fallback chat response generated (Session: {session_id[:8]})")
+                
+                return ChatResponse(
+                    message=fallback_response.content,
+                    strategy="Fallback LLM (Analyzer not ready)",
+                    timestamp=datetime.now().isoformat(),
+                    session_id=session_id
+                )
+                
+            except Exception as fallback_error:
+                logger.error(f"❌ Fallback chat also failed: {str(fallback_error)}")
+                raise HTTPException(
+                    status_code=503,
+                    detail="Analyzer is not ready and fallback failed. Please try again in a moment."
+                )
+        
         # Add report context to the question
         enhanced_question = f"""
         Based on the California property inspection report that was analyzed, please answer this question:
@@ -346,11 +465,54 @@ async def clear_session(session_id: str = Depends(get_session_id)):
         del sessions[session_id]
     return {"message": "Session cleared successfully"}
 
+@app.post("/api/retry-analyzer")
+async def retry_analyzer_initialization():
+    """Retry analyzer initialization"""
+    global analyzer
+    try:
+        logger.info("🔄 Retrying analyzer initialization...")
+        analyzer = InspectionAnalyzer()
+        await analyzer.initialize()
+        logger.info("✅ Analyzer initialized successfully")
+        return {"status": "success", "message": "Analyzer initialized successfully"}
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize analyzer: {str(e)}")
+        analyzer = None
+        raise HTTPException(status_code=500, detail=f"Failed to initialize analyzer: {str(e)}")
+
+@app.get("/api/analyzer-status")
+async def get_analyzer_status():
+    """Get detailed analyzer status"""
+    return {
+        "analyzer_available": analyzer is not None,
+        "analyzer_ready": analyzer.is_ready if analyzer else False,
+        "analyzer_status": "ready" if analyzer and analyzer.is_ready else "not_ready" if analyzer else "not_initialized",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/")
+async def root():
+    """Serve the frontend application"""
+    return FileResponse("app/frontend/index.html")
+
+@app.get("/health")
+async def health():
+    """Simple health check for Cloud Run"""
+    return {"status": "healthy", "service": "inspection-analyzer"}
+
 if __name__ == "__main__":
+    # Get port from environment variable (Cloud Run requirement)
+    port = int(os.environ.get("PORT", 8000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    
+    print(f"🚀 Starting server on {host}:{port}")
+    print(f"📊 Environment: PORT={port}, HOST={host}")
+    
     uvicorn.run(
-        "main:app", 
-        host="127.0.0.1", 
-        port=8000, 
-        reload=True,
-        log_level="info"
+        "app.backend.main:app", 
+        host=host, 
+        port=port, 
+        reload=False,  # Disable reload in production
+        log_level="info",
+        access_log=True
     )

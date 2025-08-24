@@ -492,7 +492,7 @@
 
              .left-panel {
                  position: static;
-                 width: 100%;
+            width: 100%;
              }
 
              .container {
@@ -518,7 +518,7 @@
              }
 
             .left-panel, .right-panel {
-                border-radius: 16px;
+            border-radius: 16px;
                 padding: 1.5rem;
             }
 
@@ -540,7 +540,7 @@
              }
 
              .footer-text {
-                 font-size: 1rem;
+            font-size: 1rem;
              }
 
              .footer-subtext {
@@ -822,15 +822,15 @@
                     <div class="question-item" onclick="askQuestion('What is the overall condition of the HVAC system?')">
                         What is the overall condition of the HVAC system?
                     </div>
-                </div>
-            </div>
+                    </div>
+                    </div>
 
             <!-- Right Panel -->
             <div class="right-panel">
                 <div class="chat-header">
                     <div class="chat-title">💬 Chat with AI Analyst</div>
                     <div class="chat-subtitle">Ask questions about your inspection report</div>
-                </div>
+                    </div>
 
                 <div class="chat-messages" id="chatMessages">
                     <!-- Initial message will be added by JavaScript -->
@@ -847,12 +847,12 @@
                         ></textarea>
                         <button class="send-button" id="sendButton" onclick="sendMessage()" disabled>
                             ➤
-                        </button>
-                    </div>
-                </div>
+                </button>
             </div>
-        </div>
-        
+                </div>
+                </div>
+                </div>
+
         <!-- Footer -->
         <footer class="footer">
             <div class="footer-content">
@@ -861,8 +861,8 @@
                 </div>
                 <div class="footer-subtext">
                     Helping you understand your inspection reports with AI-powered analysis
-                </div>
             </div>
+        </div>
         </footer>
     </div>
 
@@ -930,13 +930,13 @@
                 alert('Daily upload limit reached. You can upload up to 3 reports per day.');
                 return;
             }
-
-            // Clear backend session if we have one
+            
+                        // Clear backend session if we have one
             if (currentSessionId) {
-                try {
-                    await fetch(`http://localhost:8000/api/session`, {
+            try {
+                    await fetch(`/api/session`, {
                         method: 'DELETE',
-                        headers: {
+                    headers: {
                             'Content-Type': 'application/json',
                         }
                     });
@@ -1027,7 +1027,7 @@ I've cleared the previous analysis. You can now upload a new inspection report t
             // Clear any existing session to ensure fresh analysis
             if (currentSessionId) {
                 try {
-                    await fetch(`http://localhost:8000/api/session`, {
+                    await fetch(`/api/session`, {
                         method: 'DELETE',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1041,8 +1041,8 @@ I've cleared the previous analysis. You can now upload a new inspection report t
             
             isUploading = true;
 
-            const formData = new FormData();
-            formData.append('file', file);
+                const formData = new FormData();
+                formData.append('file', file);
 
             try {
                 // Show loading state
@@ -1057,7 +1057,7 @@ I've cleared the previous analysis. You can now upload a new inspection report t
                     </div>
                 `;
 
-                const response = await fetch('http://localhost:8000/api/upload-report', {
+                const response = await fetch('/api/upload-report', {
                     method: 'POST',
                     body: formData
                 });
@@ -1066,14 +1066,14 @@ I've cleared the previous analysis. You can now upload a new inspection report t
                     throw new Error(`Upload failed: ${response.statusText}`);
                 }
 
-                const result = await response.json();
+                    const result = await response.json();
                 currentSessionId = result.session_id;
 
                 // Increment upload counter
                 uploadsUsed++;
                 updateUploadLimit();
-
-                // Show success state
+                    
+                    // Show success state
                 document.getElementById('uploadSuccess').classList.remove('hidden');
                 uploadSection.classList.add('hidden');
 
@@ -1085,7 +1085,7 @@ I'm processing **"${file.name}"** and will be ready to answer your questions in 
 *Please wait while I analyze the inspection findings...*`);
 
                 // Wait a moment for background processing to complete
-                setTimeout(() => {
+                    setTimeout(() => {
                     addMessage('assistant', `🎉 **Analysis complete!** 
 
 I'm ready to answer your questions about the inspection findings. You can now ask me about:
@@ -1095,7 +1095,7 @@ I'm ready to answer your questions about the inspection findings. You can now as
 - **Cost estimates** for repairs
 - **Budget planning** recommendations
 - **Priority recommendations** for repairs`);
-                }, 3000);
+                    }, 3000);
 
             } catch (error) {
                 console.error('Upload error:', error);
@@ -1125,7 +1125,7 @@ I'm ready to answer your questions about the inspection findings. You can now as
             const message = input.value.trim();
             
             if (!message || isProcessing) return;
-
+            
             addMessage('user', message);
             input.value = '';
             updateSendButton();
@@ -1155,7 +1155,7 @@ I'm ready to answer your questions about the inspection findings. You can now as
             const loadingId = addLoadingMessage();
 
             try {
-                const response = await fetch('http://localhost:8000/api/chat', {
+                const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1165,7 +1165,7 @@ I'm ready to answer your questions about the inspection findings. You can now as
                         session_id: currentSessionId
                     })
                 });
-
+                
                 if (!response.ok) {
                     throw new Error(`Chat failed: ${response.statusText}`);
                 }
