@@ -23,7 +23,7 @@ if __name__ == "__main__":
     print("🚀 Starting California Property Inspection Analyzer Backend...")
     print("📊 API Documentation will be available at: http://127.0.0.1:8000/api/docs")
     print("🔧 Backend API running on: http://127.0.0.1:8000")
-    print("⚠️  Make sure to start the frontend separately with: uv run streamlit run app/frontend/streamlit_app.py")
+    print("⚠️  Make sure to start the frontend separately with: python launch_html.py")
     print("-" * 80)
     
     uvicorn.run(

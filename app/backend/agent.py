@@ -234,7 +234,7 @@ class InspectionAnalyzer:
                             result += "\n"
                     
                     return result
-            else:
+                else:
                     return "Unable to fetch repair types from API"
             except Exception as e:
                 return f"Error fetching repair types: {e}"
@@ -544,7 +544,7 @@ ALWAYS use tools when appropriate. Don't just provide general answers for cost q
                                     mapped_repair_type = "roof_repair"
                                 elif "floor" in repair_type_lower:
                                     mapped_repair_type = "flooring_installation"
-                else:
+                                else:
                                     mapped_repair_type = "general_repair"
                                 
                                 api_url = f"https://repair-cost-api-618596951812.us-central1.run.app/api/v1/repair-cost/{mapped_repair_type}"
@@ -559,7 +559,7 @@ ALWAYS use tools when appropriate. Don't just provide general answers for cost q
                                     cost_est = data.get('cost_estimate', {})
                                     avg_cost = cost_est.get('average', 0)
                                     cost_info += f"- **{repair_type}**: ${avg_cost:,} average\n"
-                else:
+                                else:
                                     cost_info += f"- **{repair_type}**: Cost estimate unavailable\n"
                             except Exception as e:
                                 logger.error(f"Error getting cost for {repair_type}: {e}")
